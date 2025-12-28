@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard, Car, Calendar, Users, UserCog, Settings, LogOut, Plus, Search,
   MoreHorizontal, TrendingUp, DollarSign, Eye, Pencil, Trash2, X, Mail, BarChart3,
-  MessageSquare, CheckCircle, Clock, AlertCircle, Upload
+  MessageSquare, CheckCircle, Clock, AlertCircle, Upload, Archive, ArchiveRestore, 
+  RefreshCw, Filter, Phone, MapPin, CalendarDays
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -662,44 +663,179 @@ function MessagesManagement() {
   const { toast } = useToast();
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"inbox" | "archive" | "all">("inbox");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => { fetchMessages(); }, []);
 
   async function fetchMessages() {
+    setLoading(true);
     const { data } = await supabase.from("contact_messages").select("*").order("created_at", { ascending: false });
     setMessages(data || []);
     setLoading(false);
   }
 
-  async function markAsRead(id: string) {
-    await supabase.from("contact_messages").update({ is_read: true }).eq("id", id);
-    toast({ title: "Marqué comme lu" });
-    fetchMessages();
+  async function updateMessageStatus(id: string, is_read: boolean) {
+    const { error } = await supabase.from("contact_messages").update({ is_read }).eq("id", id);
+    if (!error) {
+      toast({ title: is_read ? "Message archivé" : "Message restauré" });
+      fetchMessages();
+    } else {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
   }
+
+  async function deleteMessage(id: string) {
+    if (confirm("Êtes-vous sûr de vouloir supprimer définitivement ce message ?")) {
+      const { error } = await supabase.from("contact_messages").delete().eq("id", id);
+      if (!error) {
+        toast({ title: "Message supprimé" });
+        fetchMessages();
+      } else {
+        toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      }
+    }
+  }
+
+  const filteredMessages = messages.filter(m => {
+    if (activeTab === "inbox") return !m.is_read;
+    if (activeTab === "archive") return m.is_read;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold">Messages de Contact</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="font-display text-2xl font-bold">Messages de Contact</h1>
+        <Button variant="outline" size="sm" onClick={fetchMessages} disabled={loading}>
+          <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} /> Actualiser
+        </Button>
+      </div>
+
+      <div className="flex space-x-2 bg-muted/50 p-1 rounded-lg w-fit">
+        <button
+          onClick={() => setActiveTab("inbox")}
+          className={cn(
+            "px-4 py-2 rounded-md text-sm font-medium transition-all",
+            activeTab === "inbox" ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Boîte de réception ({messages.filter(m => !m.is_read).length})
+        </button>
+        <button
+          onClick={() => setActiveTab("archive")}
+          className={cn(
+            "px-4 py-2 rounded-md text-sm font-medium transition-all",
+            activeTab === "archive" ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Archives ({messages.filter(m => m.is_read).length})
+        </button>
+        <button
+          onClick={() => setActiveTab("all")}
+          className={cn(
+            "px-4 py-2 rounded-md text-sm font-medium transition-all",
+            activeTab === "all" ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Tout
+        </button>
+      </div>
+
       <div className="space-y-4">
-        {messages.map((m) => (
-          <div key={m.id} className={cn("bg-card rounded-xl p-6 shadow-soft border", m.is_read ? "border-border/50" : "border-accent")}>
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="font-semibold">{m.name}</h3>
-                <p className="text-sm text-muted-foreground">{m.email} • {m.phone}</p>
+        {filteredMessages.map((m) => (
+          <div 
+            key={m.id} 
+            className={cn(
+              "bg-card rounded-xl shadow-soft border transition-all overflow-hidden",
+              !m.is_read ? "border-primary/50 bg-primary/5" : "border-border/50"
+            )}
+          >
+            <div className="p-4 sm:p-6 cursor-pointer" onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}>
+              <div className="flex flex-col sm:flex-row justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className={cn("w-2 h-2 mt-2 rounded-full flex-shrink-0", !m.is_read ? "bg-primary" : "bg-transparent")} />
+                  <div>
+                    <h3 className="font-semibold text-lg">{m.name}</h3>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1">
+                      <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {m.email}</span>
+                      {m.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {m.phone}</span>}
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(m.created_at).toLocaleDateString("fr-FR", { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-start">
+                  {!m.is_read ? (
+                    <Button size="sm" variant="ghost" className="h-8 text-primary hover:text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); updateMessageStatus(m.id, true); }}>
+                      <Archive className="w-4 h-4 mr-2" /> Archiver
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="ghost" className="h-8" onClick={(e) => { e.stopPropagation(); updateMessageStatus(m.id, false); }}>
+                      <ArchiveRestore className="w-4 h-4 mr-2" /> Restaurer
+                    </Button>
+                  )}
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); deleteMessage(m.id); }}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {!m.is_read && <span className="px-2 py-1 bg-accent text-accent-foreground text-xs rounded-full">Nouveau</span>}
-                <span className="text-xs text-muted-foreground">{new Date(m.created_at).toLocaleDateString("fr-FR")}</span>
+              
+              <div className="mt-4 pl-5">
+                 <p className={cn("text-foreground", expandedId !== m.id && "line-clamp-2")}>{m.message}</p>
               </div>
             </div>
-            {m.service_interest && <p className="text-sm mb-2"><strong>Service:</strong> {m.service_interest}</p>}
-            {m.pickup_location && <p className="text-sm mb-2"><strong>Trajet:</strong> {m.pickup_location} → {m.dropoff_location}</p>}
-            <p className="text-foreground mb-4">{m.message}</p>
-            {!m.is_read && <Button size="sm" onClick={() => markAsRead(m.id)}>Marquer comme lu</Button>}
+
+            {expandedId === m.id && (
+              <div className="px-6 pb-6 pt-0 pl-11 animate-in slide-in-from-top-2 duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-4 bg-muted/50 rounded-lg">
+                  {m.service_interest && (
+                    <div>
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Service</span>
+                      <p className="font-medium">{m.service_interest}</p>
+                    </div>
+                  )}
+                  {m.travel_dates && (
+                    <div>
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Dates</span>
+                      <p className="font-medium">{m.travel_dates}</p>
+                    </div>
+                  )}
+                  {(m.pickup_location || m.dropoff_location) && (
+                    <div className="md:col-span-2">
+                       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1"><MapPin className="w-3 h-3" /> Trajet</span>
+                       <div className="flex items-center gap-2 mt-1">
+                          <span>{m.pickup_location || "..."}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span>{m.dropoff_location || "..."}</span>
+                       </div>
+                    </div>
+                  )}
+                  {m.passengers && (
+                    <div>
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1"><Users className="w-3 h-3" /> Passagers</span>
+                      <p className="font-medium">{m.passengers}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 flex justify-end">
+                   <Button asChild variant="default" size="sm">
+                      <a href={`mailto:${m.email}?subject=Réponse à votre message Sunuvan`}>
+                        <Mail className="w-4 h-4 mr-2" /> Répondre par email
+                      </a>
+                   </Button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
-        {messages.length === 0 && !loading && <p className="text-center text-muted-foreground py-8">Aucun message</p>}
+        {filteredMessages.length === 0 && !loading && (
+          <div className="text-center py-12 bg-card rounded-xl border border-dashed">
+            <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+              <MessageSquare className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground font-medium">Aucun message dans cette section</p>
+          </div>
+        )}
       </div>
     </div>
   );
