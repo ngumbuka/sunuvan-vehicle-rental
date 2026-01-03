@@ -125,7 +125,7 @@ export function Navbar() {
               transition={{ duration: 0.2 }}
               className="lg:hidden overflow-hidden"
             >
-              <div className="py-4 space-y-1 border-t border-border/50">
+              <div className="py-4 space-y-1 border-t border-border/50 max-h-[calc(100vh-5rem)] overflow-y-auto">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}

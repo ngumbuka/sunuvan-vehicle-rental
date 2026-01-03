@@ -5,9 +5,10 @@ import {
   LayoutDashboard, Car, Calendar, Users, UserCog, Settings, LogOut, Plus, Search,
   MoreHorizontal, TrendingUp, DollarSign, Eye, Pencil, Trash2, X, Mail, BarChart3,
   MessageSquare, CheckCircle, Clock, AlertCircle, Upload, Archive, ArchiveRestore, 
-  RefreshCw, Filter, Phone, MapPin, CalendarDays
+  RefreshCw, Filter, Phone, MapPin, CalendarDays, Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,7 +77,7 @@ function AdminOverview() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="font-display text-2xl font-bold">{t("admin.dashboard")}</h1>
         <Link to="/admin/bookings">
           <Button variant="hero"><Plus className="w-4 h-4 mr-2" /> Nouvelle Réservation</Button>
@@ -260,7 +261,7 @@ function VehicleManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="font-display text-2xl font-bold">Gestion des Véhicules</h1>
         <Dialog open={isDialogOpen} onOpenChange={(o) => { setIsDialogOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
@@ -335,7 +336,7 @@ function VehicleManagement() {
         <Input placeholder="Rechercher..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      <div className="bg-card rounded-xl shadow-soft overflow-hidden border border-border/50">
+      <div className="bg-card rounded-xl shadow-soft overflow-x-auto border border-border/50">
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
@@ -397,7 +398,7 @@ function BookingManagement() {
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-bold">Gestion des Réservations</h1>
 
-      <div className="bg-card rounded-xl shadow-soft overflow-hidden border border-border/50">
+      <div className="bg-card rounded-xl shadow-soft overflow-x-auto border border-border/50">
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
@@ -488,7 +489,7 @@ function DriverManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="font-display text-2xl font-bold">Gestion des Chauffeurs</h1>
         <Dialog open={isDialogOpen} onOpenChange={(o) => { setIsDialogOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild><Button variant="hero"><Plus className="w-4 h-4 mr-2" /> Ajouter</Button></DialogTrigger>
@@ -507,7 +508,7 @@ function DriverManagement() {
         </Dialog>
       </div>
 
-      <div className="bg-card rounded-xl shadow-soft overflow-hidden border border-border/50">
+      <div className="bg-card rounded-xl shadow-soft overflow-x-auto border border-border/50">
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
@@ -593,7 +594,7 @@ function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="font-display text-2xl font-bold">Gestion des Utilisateurs</h1>
         <Dialog open={isDialogOpen} onOpenChange={(o) => { setIsDialogOpen(o); if (!o) resetForm(); }}>
           <DialogContent>
@@ -625,7 +626,7 @@ function UserManagement() {
         </Dialog>
       </div>
 
-      <div className="bg-card rounded-xl shadow-soft overflow-hidden border border-border/50">
+      <div className="bg-card rounded-xl shadow-soft overflow-x-auto border border-border/50">
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
@@ -849,7 +850,11 @@ function AnalyticsDashboard() {
     async function fetchStats() {
       const { data } = await supabase.from("bookings").select("status");
       if (data) {
-        const counts = data.reduce((acc, b) => { acc[b.status] = (acc[b.status] || 0) + 1; return acc; }, {} as any);
+        const counts = data.reduce((acc, b) => {
+          const status = b.status || 'unknown';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
         setStats({ pending: counts.pending || 0, confirmed: counts.confirmed || 0, completed: counts.completed || 0, cancelled: counts.cancelled || 0 });
       }
     }
@@ -869,7 +874,15 @@ function AnalyticsDashboard() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color, bg }: any) {
+interface StatCardProps {
+  icon: React.ElementType;
+  label: string;
+  value: number | string;
+  color: string;
+  bg: string;
+}
+
+function StatCard({ icon: Icon, label, value, color, bg }: StatCardProps) {
   return (
     <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
       <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center mb-4", bg)}>
@@ -940,8 +953,41 @@ export default function AdminDashboard() {
   if (!isAdmin) return null;
 
   return (
-    <div className="min-h-screen bg-muted/30 flex">
-      <aside className="w-64 bg-primary text-primary-foreground p-6 hidden lg:flex flex-col">
+    <div className="min-h-screen bg-muted/30 flex flex-col lg:flex-row">
+      {/* Mobile Header */}
+      <div className="lg:hidden p-4 bg-card border-b border-border flex items-center justify-between sticky top-0 z-50">
+        <Link to="/" className="flex items-center gap-2">
+          <img src="/logo-sm.png" alt="Sunuvan Admin" className="h-8 w-auto object-contain" />
+          <span className="font-display text-lg font-semibold">Admin</span>
+        </Link>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="w-6 h-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0 border-r border-border bg-primary text-primary-foreground">
+            <div className="flex flex-col h-full p-6">
+              <Link to="/" className="flex items-center gap-2 mb-8">
+                <img src="/logo-sm.png" alt="Sunuvan Admin" className="h-10 w-auto object-contain" />
+                <span className="font-display text-xl font-semibold">Admin</span>
+              </Link>
+              <nav className="space-y-1 flex-1">
+                {sidebarLinks.map((link) => (
+                  <Link key={link.href} to={link.href} className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-colors", location.pathname === link.href ? "bg-accent text-accent-foreground" : "text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground")}>
+                    <link.icon className="w-5 h-5" />{link.label}
+                  </Link>
+                ))}
+              </nav>
+              <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-lg text-primary-foreground/70 hover:bg-primary-foreground/10 transition-colors">
+                <LogOut className="w-5 h-5" />Quitter
+              </Link>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <aside className="w-64 bg-primary text-primary-foreground p-6 hidden lg:flex flex-col h-screen sticky top-0">
         <Link to="/" className="flex items-center gap-2 mb-8">
           <img src="/logo-sm.png" alt="Sunuvan Admin" className="h-10 w-auto object-contain" />
           <span className="font-display text-xl font-semibold">Admin</span>
@@ -960,7 +1006,7 @@ export default function AdminDashboard() {
         </Link>
       </aside>
 
-      <main className="flex-1 p-8 overflow-auto">
+      <main className="flex-1 p-4 lg:p-8 overflow-auto w-full">
         <Routes>
           <Route path="/" element={<AdminOverview />} />
           <Route path="/vehicles" element={<VehicleManagement />} />

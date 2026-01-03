@@ -3,9 +3,10 @@ import { Link, Routes, Route, useLocation, useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next";
 import {
   Home, Calendar, Heart, User, LogOut, Plus, ArrowRight, Clock, CheckCircle,
-  XCircle, Car, MapPin, Settings as SettingsIcon, Trash2
+  XCircle, Car, MapPin, Settings as SettingsIcon, Trash2, Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -74,12 +75,12 @@ function DashboardOverview() {
         ))}
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <Link to="/fleet">
-          <Button variant="hero" size="lg"><Plus className="w-5 h-5 mr-2" /> {t("dashboard.newBooking")}</Button>
+          <Button variant="hero" size="lg" className="w-full sm:w-auto"><Plus className="w-5 h-5 mr-2" /> {t("dashboard.newBooking")}</Button>
         </Link>
         <Link to="/dashboard/bookings">
-          <Button variant="outline" size="lg"><Calendar className="w-5 h-5 mr-2" /> {t("dashboard.viewBookings")}</Button>
+          <Button variant="outline" size="lg" className="w-full sm:w-auto"><Calendar className="w-5 h-5 mr-2" /> {t("dashboard.viewBookings")}</Button>
         </Link>
       </div>
     </div>
@@ -411,9 +412,54 @@ export default function Dashboard() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-muted/30 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border p-6 hidden lg:flex flex-col">
+    <div className="min-h-screen bg-muted/30 flex flex-col lg:flex-row">
+      {/* Mobile Header */}
+      <div className="lg:hidden p-4 bg-card border-b border-border flex items-center justify-between sticky top-0 z-50">
+        <Link to="/" className="flex items-center gap-2">
+          <img src="/logo.png" alt="Sunuvan" className="h-8 w-auto object-contain block" />
+        </Link>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="w-6 h-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-6">
+            <Link to="/" className="flex items-center gap-2 mb-8">
+              <img src="/logo.png" alt="Sunuvan" className="h-10 w-auto object-contain block" />
+            </Link>
+            <nav className="space-y-1 flex-1">
+              {sidebarLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+                    location.pathname === link.href
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <link.icon className="w-5 h-5" />
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="pt-4 border-t border-border mt-auto">
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full"
+              >
+                <LogOut className="w-5 h-5" />
+                {t("nav.signOut")}
+              </button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Sidebar (Desktop) */}
+      <aside className="w-64 bg-card border-r border-border p-6 hidden lg:flex flex-col h-screen sticky top-0">
         <Link to="/" className="flex items-center gap-2 mb-8">
           <img src="/logo.png" alt="Sunuvan" className="h-12 w-auto object-contain block" />
         </Link>
@@ -448,7 +494,7 @@ export default function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
+      <main className="flex-1 p-4 lg:p-8 overflow-auto w-full">
         <Routes>
           <Route path="/" element={<DashboardOverview />} />
           <Route path="/bookings/:id" element={<BookingDetails />} />
